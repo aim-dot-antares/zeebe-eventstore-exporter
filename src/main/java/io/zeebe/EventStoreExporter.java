@@ -1,9 +1,9 @@
 package io.zeebe;
 
-import io.zeebe.exporter.api.context.Context;
-import io.zeebe.exporter.api.context.Controller;
-import io.zeebe.exporter.api.record.Record;
-import io.zeebe.exporter.api.spi.Exporter;
+import io.camunda.zeebe.exporter.api.Exporter;
+import io.camunda.zeebe.exporter.api.context.Context;
+import io.camunda.zeebe.exporter.api.context.Controller;
+import io.camunda.zeebe.protocol.record.Record;
 import org.json.JSONArray;
 import org.slf4j.Logger;
 
@@ -32,7 +32,6 @@ public class EventStoreExporter implements Exporter
                 .getConfiguration()
                 .instantiate(EventStoreExporterConfiguration.class);
         applyEnvironmentVariables(configuration);
-
         configureRecordFilter(context);
 
         log.debug("Exporter configured with {}", configuration);
@@ -53,13 +52,13 @@ public class EventStoreExporter implements Exporter
         }
     }
 
-    public void open(final Controller controller) {
+    public void open(Controller controller) {
         eventQueue = new EventQueue();
         batcher = new Batcher(configuration);
         sender = new Sender(controller, log, configuration);
-        this.controller =  controller;
-        controller.scheduleTask(Duration.ofMillis(batcher.batchPeriod), this::batchEvents);
-        controller.scheduleTask(Duration.ofMillis(sender.sendPeriod), this::sendBatch);
+        this.controller = controller;
+        controller.scheduleCancellableTask(Duration.ofMillis(batcher.batchPeriod), this::batchEvents);
+        controller.scheduleCancellableTask(Duration.ofMillis(sender.sendPeriod), this::sendBatch);
         log.debug("Event Store exporter started.");
     }
 
@@ -67,18 +66,18 @@ public class EventStoreExporter implements Exporter
         log.debug("Closing Event Store Exporter");
     }
 
-    public void export(Record record) {
+    public void export(final Record<?> record) {
         eventQueue.addEvent(record);
     }
 
     private void batchEvents() {
         batcher.batchFrom(eventQueue);
-        controller.scheduleTask(Duration.ofMillis(batcher.batchPeriod), this::batchEvents);
+        controller.scheduleCancellableTask(Duration.ofMillis(batcher.batchPeriod), this::batchEvents);
     }
 
     private void sendBatch() {
         sender.sendFrom(batcher);
-        controller.scheduleTask(Duration.ofMillis(sender.sendPeriod), this::sendBatch);
+        controller.scheduleCancellableTask(Duration.ofMillis(sender.sendPeriod), this::sendBatch);
     }
 
     private void applyEnvironmentVariables(final EventStoreExporterConfiguration configuration) {

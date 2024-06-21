@@ -1,6 +1,6 @@
 package io.zeebe;
 
-import io.zeebe.exporter.api.context.Controller;
+import io.camunda.zeebe.exporter.api.context.Controller;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.json.JSONArray;
 import org.slf4j.Logger;
@@ -19,6 +19,7 @@ class Sender {
 
     Sender(Controller controller, Logger log, EventStoreExporterConfiguration configuration) {
         sendTimeMilli = configuration.batchTimeMilli;
+        sendPeriod = sendTimeMilli;
         this.controller = controller;
         this.log = log;
         http = new HttpStatelessSender(configuration);
